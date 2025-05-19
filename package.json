@@ -1,6 +1,6 @@
 {
   "name": "@studiopanda/minikit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Watches and builds JS and SCSS files with dependency tracking, minification, and source maps",
   "bin": {
     "minikit": "./bin/cli.js"
@@ -13,7 +13,6 @@
     "@babel/preset-env": "^7.0.0",
     "autoprefixer": "^10.0.0",
     "chokidar": "^3.0.0",
-    "core-js": "^3.36.0",
     "fs-extra": "^11.0.0",
     "path": "^0.12.7",
     "postcss": "^8.0.0",
