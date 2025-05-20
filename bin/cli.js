@@ -49,8 +49,8 @@ chokidar.watch(CONFIG_PATH).on('all', () => {
 			console.error(`❌ Invalid path in config.json:`, err.message);
 			continue;
 		}
-		console.log(`📡 Watching: ${srcDir}`);
-		console.log(`📦 Output to: ${outDir}`);
-		activeWatchers.set(`${srcDir}→${outDir}`, runWatcher(srcDir, outDir));
+		console.log(`📡 Watching: ${src}`);
+		console.log(`📦 Output to: ${out}`);
+		activeWatchers.set(`${src}→${out}`, runWatcher(src, out));
 	}
 });
