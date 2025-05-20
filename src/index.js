@@ -93,9 +93,9 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
       fs.writeFile(outPath, minified.code);
       fs.writeFile(outPath + '.map', minified.map);
 
-      console.log(`✔ Built JS: ${relPath}`);
+      console.log(`✅ Built JS: ${relPath}`);
     } catch (err) {
-      console.error(`✖ Failed to compile JS: ${filePath}`, err);
+      console.error(`❌ Failed to compile JS: ${filePath}`, err);
     }
   }
 
@@ -127,9 +127,9 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
         await fs.writeFile(outPath + '.map', postCssResult.map.toString());
       }
 
-      console.log(`✔ Built SCSS: ${relPath}`);
+      console.log(`✅ Built SCSS: ${relPath}`);
     } catch (err) {
-      console.error(`✖ Error compiling SCSS: ${filePath}`, err);
+      console.error(`❌ Error compiling SCSS: ${filePath}`, err);
     }
   }
 
@@ -174,4 +174,9 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
     }
     console.log(`✖ Removed: ${relPath}`);
   });
+
+  return () => {
+    watcher.close();
+  };
+
 }
