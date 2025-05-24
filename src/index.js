@@ -6,6 +6,7 @@ import { minify } from 'terser';
 import * as sass from 'sass';
 import postcss from 'postcss';
 import autoprefixer from 'autoprefixer';
+import { glob } from 'glob';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
@@ -15,7 +16,7 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
   const watcher = chokidar.watch(SRC_DIR, {
     ignored: /(^|[/\\])\../,
     persistent: true,
-    ignoreInitial: false
+    ignoreInitial: true
   });
 
   function isProcessable(filePath) {
@@ -40,7 +41,7 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
     let content = await fs.readFile(realPath, 'utf8');
     dependencyGraph.set(realPath, []);
 
-    const importRegex = /^\s*\/\/\s*@(?:import|codekit-prepend|prepros-prepend)\s+['"]?([^'"]+)['"]?;?$/gm;
+    const importRegex = /^\s*\/\/\s*@(?:import|codekit-prepend|prepros-prepend)\s+['"]?([^'"\n\r]+)['"]?\s*;?\s*$/gm;
     let match;
     let resolvedContent = '';
 
@@ -56,7 +57,7 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
     }
 
     resolvedContent += content.slice(lastIndex);
-    return resolvedContent;
+    return resolvedContent + ";";
   }
 
   async function recompile(filePath) {
@@ -133,6 +134,26 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
     }
   }
 
+  async function compileAllScss() {
+    const scssFiles = await glob('**/*.{scss,sass}', { cwd: SRC_DIR });
+    for (const file of scssFiles) {
+      const filePath = path.join(SRC_DIR, file);
+      if (isScssProcessable(filePath)) {
+        await compileScss(filePath);
+      }
+    }
+  }
+
+  async function compileAllJs() {
+    const jsFiles = await glob('**/*.js', { cwd: SRC_DIR });
+    for (const file of jsFiles) {
+      const filePath = path.join(SRC_DIR, file);
+      if (isProcessable(filePath)) {
+        await recompile(filePath);
+      }
+    }
+  }
+
   async function rebuildDependents(changedPath) {
     for (const [target, deps] of dependencyGraph.entries()) {
       if (deps.includes(changedPath)) {
@@ -142,38 +163,53 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
   }
 
   watcher.on('add', async (filePath) => {
-    if (isProcessable(filePath)) await recompile(filePath);
-    else if (isScssProcessable(filePath)) await compileScss(filePath);
+    switch(path.extname(filePath)) {
+      case '.js':
+        if (path.basename(filePath).startsWith('_')) await rebuildDependents(path.resolve(filePath));
+        else if (isProcessable(filePath)) await recompile(filePath);
+        break;
+      case '.scss':
+      case '.sass':
+        await compileAllScss();
+    }
   });
 
   watcher.on('change', async (filePath) => {
-    const ext = path.extname(filePath);
-    const isPartial = path.basename(filePath).startsWith('_') ||
-      path.relative(SRC_DIR, filePath).split(path.sep).some(p => p.startsWith('_'));
-
-    if (['.js'].includes(ext)) {
-      if (isPartial) await rebuildDependents(path.resolve(filePath));
-      else if (isProcessable(filePath)) await recompile(filePath);
-    } else if (['.scss', '.sass'].includes(ext)) {
-      if (!isPartial) await compileScss(filePath);
+    switch(path.extname(filePath)) {
+      case '.js':
+        if (path.basename(filePath).startsWith('_')) await rebuildDependents(path.resolve(filePath));
+        else if (isProcessable(filePath)) await recompile(filePath);
+        break;
+      case '.scss':
+      case '.sass':
+        await compileAllScss();
     }
   });
 
   watcher.on('unlink', async (filePath) => {
-    const relPath = path.relative(SRC_DIR, filePath);
-    const ext = path.extname(filePath);
-    if (['.js'].includes(ext)) {
-      const outPath = path.join(OUT_DIR, relPath);
-      await fs.remove(outPath);
-      await fs.remove(outPath + '.map');
-      dependencyGraph.delete(filePath);
-    } else if (['.scss', '.sass'].includes(ext)) {
-      const outPath = path.join(OUT_DIR, relPath).replace(/\.(scss|sass)$/, '.css');
-      await fs.remove(outPath);
-      await fs.remove(outPath + '.map');
+    switch(path.extname(filePath)) {
+      case '.js':
+        if(path.basename(filePath).startsWith('_')) await rebuildDependents(path.resolve(filePath));
+        else if(isProcessable(filePath)) {
+          const outPath = path.join(OUT_DIR, path.relative(SRC_DIR, filePath));
+          await fs.remove(outPath);
+          await fs.remove(outPath + '.map');
+          dependencyGraph.delete(filePath);
+        }
+        break;
+      case '.scss':
+      case '.sass':
+        if(path.basename(filePath).startsWith('_')) await compileAllScss();
+        else if(isScssProcessable(filePath)) {
+          const outPath = path.join(OUT_DIR, path.relative(SRC_DIR, filePath)).replace(/\.(scss|sass)$/, '.css');
+          await fs.remove(outPath);
+          await fs.remove(outPath + '.map');
+        }
     }
-    console.log(`✖ Removed: ${relPath}`);
   });
+
+  compileAllJs();
+  compileAllScss();
 
   return () => {
     watcher.close();
