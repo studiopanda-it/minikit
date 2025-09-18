@@ -22,14 +22,14 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
     const ext = path.extname(filePath);
     if (!['.js'].includes(ext)) return false;
     const parts = path.relative(SRC_DIR, filePath).split(path.sep);
-    return parts.every(part => !part.startsWith('_'));
+    return parts.every(part => !part.startsWith('_') && part !== 'node_modules');
   }
 
   function isScssProcessable(filePath) {
     const ext = path.extname(filePath);
     if (!['.scss', '.sass'].includes(ext)) return false;
     const parts = path.relative(SRC_DIR, filePath).split(path.sep);
-    return parts.every(part => !part.startsWith('_'));
+    return parts.every(part => !part.startsWith('_') && part !== 'node_modules');
   }
 
   async function resolveJsImports(filePath, visited = new Set()) {
