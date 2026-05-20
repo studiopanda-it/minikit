@@ -53,7 +53,16 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
   }
 
   async function compileJs(filePath) {
-    if (!isJsProcessable(filePath)) return;
+    if(!isJsProcessable(filePath)) return;
+    const relPath = path.relative(SRC_DIR, filePath);
+    const outPath = path.join(OUT_DIR, relPath);
+    try {
+      await fs.ensureDir(path.dirname(outPath));
+    } catch (err) {
+      console.error(`❌ Failed to create output directory for: ${filePath}`, err);
+      return;
+    }
+
     try {
       const code = await resolveJsImports(filePath);
       const babelResult = await transformAsync(code, {
@@ -80,25 +89,27 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
         }
       });
 
-      const relPath = path.relative(SRC_DIR, filePath);
-      const outPath = path.join(OUT_DIR, relPath);
-
-      await fs.ensureDir(path.dirname(outPath));
       fs.writeFile(outPath, minified.code);
       fs.writeFile(outPath + '.map', minified.map);
 
       console.log(`✅ Built JS: ${relPath}`);
     } catch (err) {
       console.error(`❌ Failed to compile JS: ${filePath}`, err);
+      fs.writeFile(outPath, `alert("❌ Failed to compile JS: ${filePath}\\n\\n"+${JSON.stringify(err.message.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, ''))})`, 'utf8');
     }
   }
 
   async function compileScss(filePath) {
     if (!isScssProcessable(filePath)) return;
+    const relPath = path.relative(SRC_DIR, filePath);
+    const outPath = path.join(OUT_DIR, relPath).replace(/\.(scss|sass)$/, '.css');
     try {
-      const relPath = path.relative(SRC_DIR, filePath);
-      const outPath = path.join(OUT_DIR, relPath).replace(/\.(scss|sass)$/, '.css');
-
+      await fs.ensureDir(path.dirname(outPath));
+    } catch(err) {
+      console.error(`❌ Failed to create output directory for: ${filePath}`, err);
+      return;
+    }
+    try {
       const result = sass.compile(filePath, {
         style: 'compressed',
         sourceMap: true,
@@ -114,10 +125,7 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
         },
       });
 
-      const finalCss = `@charset "UTF-8";\n${postCssResult.css}`;
-
-      await fs.ensureDir(path.dirname(outPath));
-      await fs.writeFile(outPath, finalCss, 'utf8');
+      await fs.writeFile(outPath, `@charset "UTF-8";\n${postCssResult.css}`, 'utf8');
       if (postCssResult.map) {
         await fs.writeFile(outPath + '.map', postCssResult.map.toString());
       }
@@ -125,6 +133,7 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
       console.log(`✅ Built CSS: ${relPath}`);
     } catch (err) {
       console.error(`❌ Error compiling CSS: ${filePath}`, err);
+      fs.writeFile(outPath, `*{display:none!important}html{display:block!important}body{display:flex!important;min-height:80vh!important;font-size:0!important;color:transparent!important;background:#fff!important;align-items:center!important;justify-content:center!important;margin:10vh 10vw!important}body::before{content:"❌ Failed to compile CSS: ${filePath}\\00000a\\00000a" ${JSON.stringify(err.message.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '')).replace(/\\n/g, '\\00000a')};font-family:monospace!important;font-size:32px!important;color:#000!important;white-space:pre-wrap!important}`, 'utf8');
     }
   }
 
