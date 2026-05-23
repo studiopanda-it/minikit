@@ -51,6 +51,11 @@ chokidar.watch(CONFIG_PATH).on('all', () => {
 		}
 		console.log(`📡 Watching: ${src}`);
 		console.log(`📦 Output to: ${out}`);
-		activeWatchers.set(`${src}→${out}`, runWatcher(src, out));
+		if('browsers' in entry) {
+			console.log(`🎯 Target browsers: ${JSON.stringify(entry.browsers)}`);
+			activeWatchers.set(`${src}→${out}`, runWatcher(src, out, entry.browsers));
+		} else {
+			activeWatchers.set(`${src}→${out}`, runWatcher(src, out));
+		}
 	}
 });

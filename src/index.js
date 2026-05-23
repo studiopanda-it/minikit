@@ -10,7 +10,7 @@ import { glob } from 'glob';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-export function runWatcher(SRC_DIR, OUT_DIR) {
+export function runWatcher(SRC_DIR, OUT_DIR, browsers = ['last 2 Chrome versions', 'last 2 Firefox versions', 'Safari >= 13']) {
 
   const watcher = chokidar.watch(SRC_DIR, {
     ignored: /(^|[/\\])\../,
@@ -70,7 +70,7 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
 				presets: [
 					[require.resolve('@babel/preset-env'), {
 						targets: {
-							browsers: ['last 2 Chrome versions', 'last 2 Firefox versions', 'Safari >= 13']
+							browsers
 						},
 						useBuiltIns: false,
 						modules: false,
@@ -116,7 +116,7 @@ export function runWatcher(SRC_DIR, OUT_DIR) {
         charset: true,
       });
 
-      const postCssResult = await postcss([autoprefixer]).process(result.css, {
+      const postCssResult = await postcss([autoprefixer({ overrideBrowserslist: browsers })]).process(result.css, {
         from: filePath,
         to: outPath,
         map: {
