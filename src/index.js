@@ -121,6 +121,7 @@ export function runWatcher(SRC_DIR, OUT_DIR, browsers = ['last 2 Chrome versions
         to: outPath,
         map: {
           inline: false,
+          annotation: `${path.basename(outPath)}.map`,
           prev: result.sourceMap,
         },
       });
