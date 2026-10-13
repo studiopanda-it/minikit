@@ -49,13 +49,15 @@ chokidar.watch(CONFIG_PATH).on('all', () => {
 			console.error(`❌ Invalid path in config.json:`, err.message);
 			continue;
 		}
+		const sourcemap = entry.sourcemap !== false;
 		console.log(`📡 Watching: ${src}`);
 		console.log(`📦 Output to: ${out}`);
 		if('browsers' in entry) {
 			console.log(`🎯 Target browsers: ${JSON.stringify(entry.browsers)}`);
-			activeWatchers.set(`${src}→${out}`, runWatcher(src, out, entry.browsers));
-		} else {
-			activeWatchers.set(`${src}→${out}`, runWatcher(src, out));
 		}
+		if(!sourcemap) {
+			console.log(`🗺️  Source maps: disabled`);
+		}
+		activeWatchers.set(`${src}→${out}`, runWatcher(src, out, entry.browsers, sourcemap));
 	}
 });

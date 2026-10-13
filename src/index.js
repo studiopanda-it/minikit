@@ -10,7 +10,7 @@ import { glob } from 'glob';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-export function runWatcher(SRC_DIR, OUT_DIR, browsers = ['last 2 Chrome versions', 'last 2 Firefox versions', 'Safari >= 13']) {
+export function runWatcher(SRC_DIR, OUT_DIR, browsers = ['last 2 Chrome versions', 'last 2 Firefox versions', 'Safari >= 13'], sourcemap = true) {
 
   const watcher = chokidar.watch(SRC_DIR, {
     ignored: /(^|[/\\])\../,
@@ -78,19 +78,23 @@ export function runWatcher(SRC_DIR, OUT_DIR, browsers = ['last 2 Chrome versions
 						shippedProposals: true
 					}]
 				],
-        sourceMaps: true
+        sourceMaps: sourcemap
       });
 
       const minified = await minify(babelResult.code, {
-        sourceMap: {
+        sourceMap: sourcemap ? {
           content: babelResult.map,
           filename: path.basename(filePath),
           url: path.basename(filePath) + '.map'
-        }
+        } : false
       });
 
-      fs.writeFile(outPath, minified.code);
-      fs.writeFile(outPath + '.map', minified.map);
+      await fs.writeFile(outPath, minified.code);
+      if (sourcemap) {
+        await fs.writeFile(outPath + '.map', minified.map);
+      } else {
+        await fs.remove(outPath + '.map');
+      }
 
       console.log(`✅ Built JS: ${relPath}`);
     } catch (err) {
@@ -112,23 +116,25 @@ export function runWatcher(SRC_DIR, OUT_DIR, browsers = ['last 2 Chrome versions
     try {
       const result = sass.compile(filePath, {
         style: 'compressed',
-        sourceMap: true,
+        sourceMap: sourcemap,
         charset: true,
       });
 
       const postCssResult = await postcss([autoprefixer({ overrideBrowserslist: browsers })]).process(result.css, {
         from: filePath,
         to: outPath,
-        map: {
+        map: sourcemap ? {
           inline: false,
           annotation: `${path.basename(outPath)}.map`,
           prev: result.sourceMap,
-        },
+        } : false,
       });
 
       await fs.writeFile(outPath, `@charset "UTF-8";\n${postCssResult.css}`, 'utf8');
-      if (postCssResult.map) {
+      if (sourcemap && postCssResult.map) {
         await fs.writeFile(outPath + '.map', postCssResult.map.toString());
+      } else {
+        await fs.remove(outPath + '.map');
       }
 
       console.log(`✅ Built CSS: ${relPath}`);
